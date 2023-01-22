@@ -10,7 +10,7 @@ stop:
 	@docker-compose stop app
 
 start:
-	@docker-compose up --build app
+	@docker-compose up -d --build app
 
 stop-debug:
 	@docker-compose stop debug
@@ -32,7 +32,7 @@ build:
 
 build-and-run:
 	make build
-	make start
+	@docker-compose up --build app
 
 build-proto:
 	# local
