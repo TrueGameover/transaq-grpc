@@ -152,10 +152,6 @@ func TxmlSendCommand(msg string) (string, error) {
 		return "", errors.New("call error: " + err.Error())
 	}
 
-	if respPtr == 0 {
-		return "", nil
-	}
-
 	respData := getStringFromCPointer(respPtr)
 
 	return respData, nil

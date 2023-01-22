@@ -37,6 +37,7 @@ type ConnectService struct {
 	messagesChannel <-chan string
 	localLogger     zerolog.Logger
 	clientExists    *client.ClientExists
+	messagesCount   uint
 }
 
 func (s *ConnectService) SendCommand(_ context.Context, request *server2.SendCommandRequest) (*server2.SendCommandResponse, error) {
@@ -53,12 +54,13 @@ func (s *ConnectService) SendCommand(_ context.Context, request *server2.SendCom
 }
 
 func (s *ConnectService) FetchResponseData(_ *server2.DataRequest, srv server2.ConnectService_FetchResponseDataServer) error {
+	s.messagesCount = 0
 	s.clientExists.Connected()
 	s.localLogger.Info().Msg("Client connected")
 
 	ctx := srv.Context()
 	for {
-		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*30)
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Minute*1)
 
 		select {
 		case msg := <-s.messagesChannel:
@@ -67,13 +69,17 @@ func (s *ConnectService) FetchResponseData(_ *server2.DataRequest, srv server2.C
 			if err != nil {
 				s.localLogger.Error().Err(err).Msg("Sending error")
 			}
+			s.messagesCount++
+
 		case <-ctx.Done():
 			s.localLogger.Warn().Msgf("Loop done %s", ctx.Err())
 			s.clientExists.Disconnected()
 			cancel()
 			return nil
+
 		case <-timeoutCtx.Done():
-			s.localLogger.Info().Msg("no message received")
+			s.localLogger.Info().Msgf("Statistic: %d per minute", s.messagesCount)
+			s.messagesCount = 0
 		}
 
 		cancel()
