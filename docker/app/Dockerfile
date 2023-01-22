@@ -1,6 +1,6 @@
-FROM debian:bullseye as base
+FROM debian:bookworm-20230109 as base
 
-RUN echo 'deb http://mirror.yandex.ru/debian bullseye main non-free contrib' > /etc/apt/sources.list
+RUN echo 'deb http://mirror.yandex.ru/debian bookworm main non-free contrib' > /etc/apt/sources.list
 RUN apt update && apt install -y --no-install-recommends --no-install-suggests ca-certificates wine64 wine64-tools winetricks && apt clean && update-ca-certificates
 
 RUN mkdir -p /home/server && useradd --uid 1000 --home /home/server server && chown -R 1000:1000 /home/server
@@ -14,7 +14,7 @@ FROM base as prod
 ADD bin/server.exe /app/bin/
 USER 1000
 WORKDIR /app/bin
-ENTRYPOINT ["/usr/bin/wine64-stable", "/app/bin/server.exe"]
+ENTRYPOINT ["/usr/bin/wine64", "/app/bin/server.exe"]
 
 FROM prod as debug_prod
 RUN apt update && apt install -y --no-install-recommends --no-install-suggests wget git && apt clean
