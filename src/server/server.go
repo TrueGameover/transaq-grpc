@@ -5,27 +5,27 @@ package server
 import "C"
 import (
 	"context"
-	"errors"
 	"github.com/TrueGameover/transaq-grpc/src/client"
 	server2 "github.com/TrueGameover/transaq-grpc/src/grpc/server"
 	"github.com/rs/zerolog"
 	"time"
 )
 
-type sendCommand func(msg string) (data *string, err error)
+type sendCommand func(msg string) (data string, err error)
 
 func NewConnectService(
-	sendCommandFunc *func(msg string) (data *string, err error),
+	sendCommandFunc *func(msg string) (data string, err error),
 	messagesChannel <-chan string,
 	clientExists *client.ClientExists,
 	logger *zerolog.Logger,
 ) *ConnectService {
 	sendFunc := sendCommand(*sendCommandFunc)
+	serverLogger := logger.With().Str("Service", "Server").Logger()
 
 	return &ConnectService{
 		txmlSendCommand: &sendFunc,
 		messagesChannel: messagesChannel,
-		localLogger:     logger,
+		localLogger:     serverLogger,
 		clientExists:    clientExists,
 	}
 }
@@ -35,18 +35,20 @@ type ConnectService struct {
 
 	txmlSendCommand *sendCommand
 	messagesChannel <-chan string
-	localLogger     *zerolog.Logger
+	localLogger     zerolog.Logger
 	clientExists    *client.ClientExists
 }
 
 func (s *ConnectService) SendCommand(_ context.Context, request *server2.SendCommandRequest) (*server2.SendCommandResponse, error) {
-	msg, _ := (*s.txmlSendCommand)(request.Message)
-	if msg == nil {
-		return nil, errors.New("nil response")
+	msg, err := (*s.txmlSendCommand)(request.Message)
+
+	if err != nil {
+		s.localLogger.Error().Err(err)
+		return nil, err
 	}
 
 	return &server2.SendCommandResponse{
-		Message: *msg,
+		Message: msg,
 	}, nil
 }
 
@@ -56,7 +58,7 @@ func (s *ConnectService) FetchResponseData(_ *server2.DataRequest, srv server2.C
 
 	ctx := srv.Context()
 	for {
-		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*30)
 
 		select {
 		case msg := <-s.messagesChannel:

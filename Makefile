@@ -10,13 +10,29 @@ stop:
 	@docker-compose stop app
 
 start:
-	@docker-compose up -d --build app
+	@docker-compose up --build app
+
+stop-debug:
+	@docker-compose stop debug
+
+start-debug:
+	@docker-compose up --build debug
+
+log-debug:
+	@docker-compose logs --tail=100 debug
 
 docker-up:
 	@docker-compose up -d --build
 
 docker-down:
 	@docker-compose down
+
+build:
+	@docker-compose up --build build
+
+build-and-run:
+	make build
+	make start
 
 build-proto:
 	# local

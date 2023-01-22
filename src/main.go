@@ -16,7 +16,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 	"unsafe"
 )
@@ -39,15 +38,22 @@ var (
 var (
 	Messages      = make(chan string, PoolSize)
 	ForMemoryFree = make(chan *C.char, PoolSize)
+	MainLogger    *zerolog.Logger
 )
 
 func main() {
 	appLogger := configureLogger()
+	MainLogger = appLogger
 
 	defer func() {
-		_, _, err := procUnInitialize.Call()
+		retVal, _, err := procUnInitialize.Call()
 		if err != nil {
 			appLogger.Error().Err(err)
+		}
+
+		if retVal != 0 {
+			msg := getStringFromCPointer(retVal)
+			appLogger.Error().Msg(msg)
 		}
 	}()
 
@@ -79,6 +85,7 @@ func main() {
 
 	err = srv.Serve(lis)
 	if err != nil {
+		appLogger.Panic().Err(err)
 	}
 }
 
@@ -87,8 +94,8 @@ func initLibrary() error {
 	if err != nil {
 		return err
 	}
-	txmlconnector = dll
 
+	txmlconnector = dll
 	procSetCallback = txmlconnector.MustFindProc("SetCallback")
 	procSendCommand = txmlconnector.MustFindProc("SendCommand")
 	procFreeMemory = txmlconnector.MustFindProc("FreeMemory")
@@ -97,9 +104,13 @@ func initLibrary() error {
 
 	logPathPtr := uintptr(unsafe.Pointer(C.CString("logs")))
 	logLevelPtr := uintptr(2)
-	_, _, err = procInitialize.Call(logPathPtr, logLevelPtr)
+	retVal, _, err := procInitialize.Call(logPathPtr, logLevelPtr)
 	if err != windows.Errno(0) {
 		return errors.New("Initialize error: " + err.Error())
+	}
+	if retVal != 0 {
+		errorMsg := getStringFromCPointer(retVal)
+		return errors.New(errorMsg)
 	}
 
 	_, _, err = procSetCallback.Call(windows.NewCallback(receiveData))
@@ -121,22 +132,33 @@ func receiveData(cmsg *C.char) uintptr {
 	return uintptr(unsafe.Pointer(&ok))
 }
 
-func TxmlSendCommand(msg string) (data *string, err error) {
-	reqData := C.CString(msg)
-	reqDataPtr := uintptr(unsafe.Pointer(reqData))
-	respPtr, _, err := procSendCommand.Call(reqDataPtr)
-	if err != syscall.Errno(0) {
-		//log.Error("txmlSendCommand() ", err.Error())
-		return nil, errors.New("call error")
+func TxmlSendCommand(msg string) (string, error) {
+	reqData := unsafe.Pointer(C.CString(msg))
+	defer C.free(reqData)
+
+	respPtr, _, err := procSendCommand.Call(uintptr(reqData))
+	defer func() {
+		if respPtr == 0 {
+			return
+		}
+
+		_, _, err = procFreeMemory.Call(respPtr)
+		if err != windows.Errno(0) {
+			MainLogger.Error().Err(err)
+		}
+	}()
+
+	if err != windows.Errno(0) {
+		return "", errors.New("call error: " + err.Error())
 	}
 
-	//goland:noinspection GoVetUnsafePointer
-	cmsg := (*C.char)(unsafe.Pointer(respPtr))
-	respData := C.GoString((*C.char)(cmsg))
+	if respPtr == 0 {
+		return "", nil
+	}
 
-	ForMemoryFree <- cmsg
+	respData := getStringFromCPointer(respPtr)
 
-	return &respData, nil
+	return respData, nil
 }
 
 func runFreeMemory(ctx context.Context) {
@@ -146,11 +168,12 @@ func runFreeMemory(ctx context.Context) {
 			return
 		case cmsg, ok := <-ForMemoryFree:
 			if !ok {
-				panic("ForMemoryFree channel was closed")
+				MainLogger.Panic().Msg("ForMemoryFree channel was closed")
 			}
 
 			_, _, err := procFreeMemory.Call(uintptr(unsafe.Pointer(cmsg)))
 			if err != windows.Errno(0) {
+				MainLogger.Error().Err(err)
 			}
 		}
 	}
@@ -176,7 +199,7 @@ func runMessagesClearing(ctx context.Context, clientExists *client.ClientExists,
 
 func SetupCloseHandler(srv *grpc.Server, localLogger *zerolog.Logger, appCancelFunc context.CancelFunc) {
 	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(c, os.Interrupt, windows.SIGTERM)
 	go func() {
 		<-c
 		localLogger.Warn().Msg("Ctrl+C pressed in Terminal")
@@ -194,4 +217,21 @@ func configureLogger() *zerolog.Logger {
 	)
 
 	return &zeroLogger
+}
+
+func getStringFromCPointer(pointer uintptr) string {
+	if pointer == 0 {
+		return ""
+	}
+
+	defer func() {
+		_, _, err := procFreeMemory.Call(pointer)
+		if err != windows.Errno(0) {
+			MainLogger.Error().Err(err)
+		}
+	}()
+
+	//goland:noinspection GoVetUnsafePointer
+	cmsg := (*C.char)(unsafe.Pointer(pointer))
+	return C.GoString(cmsg)
 }
