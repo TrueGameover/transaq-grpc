@@ -45,3 +45,7 @@ build-proto:
   --go-grpc_out=./src/grpc --go-grpc_opt=Mconnect.proto=/server \
   proto/connect.proto
 
+push:
+	@make build
+	@make start
+	@docker-compose push app
