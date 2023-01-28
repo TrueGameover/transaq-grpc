@@ -56,7 +56,8 @@ func (h *TransaqHandler) Init(appContext context.Context, clientExists *client.C
 	h.procInitialize = h.txmlconnector.MustFindProc("InitializeEx")
 	h.procUnInitialize = h.txmlconnector.MustFindProc("UnInitialize")
 
-	initCommandPtr := unsafe.Pointer(C.CString("<init log_path=\"logs\" log_level=\"2\" logfile_lifetime=\"\"/>"))
+	initCommandStr := "<init log_path=\"logs\" log_level=\"2\" logfile_lifetime=\"\"/>"
+	initCommandPtr := unsafe.Pointer(C.CString(initCommandStr))
 	retVal, _, err := h.procInitialize.Call(uintptr(initCommandPtr))
 	if err != windows.Errno(0) {
 		err = errors.New("Initialize error: " + err.Error())
@@ -68,10 +69,6 @@ func (h *TransaqHandler) Init(appContext context.Context, clientExists *client.C
 		h.localLogger.Error().Msg(errorMsg)
 		return errors.New(errorMsg)
 	}
-
-	h.localLogger.Info().Msg("Await initialization...")
-	// need wait for initialization
-	//time.Sleep(time.Second * 30)
 
 	_, _, err = h.procSetCallback.Call(windows.NewCallback(h.receiveData))
 	if err != windows.Errno(0) {
@@ -130,11 +127,15 @@ func (h *TransaqHandler) receiveData(cmsg *C.char) uintptr {
 	return uintptr(unsafe.Pointer(&ok))
 }
 
-func (h *TransaqHandler) Release() {
+func (h *TransaqHandler) Disconnect() {
 	_, err := h.SendCommand("<command id=\"disconnect\"/>")
 	if err != nil {
-		return
+		h.localLogger.Error().Err(err)
 	}
+}
+
+func (h *TransaqHandler) Release() {
+	h.Disconnect()
 
 	retVal, _, err := h.procUnInitialize.Call()
 	if err != windows.Errno(0) {

@@ -26,8 +26,14 @@ func main() {
 	transaqHandler := transaq.NewTransaqHandler(appLogger, messagesChannel)
 	clientExists := client.NewClientExists()
 
-	_, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	err := transaqHandler.Init(ctx, clientExists)
+	defer transaqHandler.Release()
+	if err != nil {
+		panic(err)
+	}
 
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {

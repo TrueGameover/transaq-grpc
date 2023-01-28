@@ -1,4 +1,4 @@
-FROM golang:1.18.2-bullseye as builder
+FROM golang:1.19.5-bullseye as builder
 
 RUN echo 'deb http://mirror.yandex.ru/debian bullseye main non-free contrib' > /etc/apt/sources.list
 RUN apt update && apt install -y gcc-mingw-w64 gcc libc-dev musl-dev
@@ -16,9 +16,7 @@ ENV CXX="x86_64-w64-mingw32-g++"
 ENV GOOS=windows
 ENV GOARCH=amd64
 
-RUN CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc" \
-    CXX="x86_64-w64-mingw32-g++" GOOS=windows GOARCH=amd64  \
-    go build -ldflags "-extldflags -static" -o ./server.exe ./src/main.go
+RUN go build -ldflags "-extldflags -static" -o ./server.exe ./src/main.go
 
 RUN chown 1000:1000 ./server.exe
 

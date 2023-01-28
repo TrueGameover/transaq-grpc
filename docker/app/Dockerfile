@@ -1,33 +1,50 @@
-FROM debian:bookworm-20230109 as base
+FROM debian:bookworm as base
 
 RUN echo 'deb http://mirror.yandex.ru/debian bookworm main non-free contrib' > /etc/apt/sources.list
-RUN apt update && apt install -y --no-install-recommends --no-install-suggests ca-certificates wine64 wine64-tools winetricks && apt clean && update-ca-certificates
+RUN apt update && \
+    apt install -y --no-install-recommends ca-certificates wine64 \
+    && apt clean && update-ca-certificates
 
-RUN mkdir -p /home/server && useradd --uid 1000 --home /home/server server && chown -R 1000:1000 /home/server
 
+#RUN dpkg --add-architecture i386 && apt update && \
+#    apt install -y --no-install-recommends ca-certificates procps wget unzip build-essential gcc gcc-multilib make flex bison \
+#    && apt clean && update-ca-certificates
+
+#RUN cd /tmp && wget https://github.com/wine-mirror/wine/archive/refs/tags/wine-7.8.zip && unzip wine-7.8.zip && rm wine-7.8.zip
+#RUN cd /tmp/wine-wine-7.8 && ls -lh && ./configure --prefix=/usr --enable-win64 --without-x --without-freetype && make -j8 && make install
+
+RUN mkdir -p /home/server && useradd --uid 1000 --home /home/server --shell /bin/bash server && chown -R 1000:1000 /home/server
 ADD dll/txmlconnector64-6.19.2.21.21.dll /app/bin/
 
 EXPOSE 50051
 
 
 FROM base as prod
+ADD docker/app/entrypoint.sh /app
 ADD bin/server.exe /app/bin/
 USER 1000
 WORKDIR /app/bin
-ENTRYPOINT ["/usr/bin/wine64", "/app/bin/server.exe"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 
-FROM prod as debug_prod
+FROM alpine:3.17.1 AS final
+
+COPY --from=prod /app/ /app/
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+FROM base as debug_prod
 RUN apt update && apt install -y --no-install-recommends --no-install-suggests wget git && apt clean
 
 RUN cd /tmp && wget https://go.dev/dl/go1.18.2.linux-amd64.tar.gz
 RUN rm -rf /usr/local/go && cd /tmp && tar -C /usr/local -xzf go1.18.2.linux-amd64.tar.gz && rm -f /tmp/go1.18.2.linux-amd64.tar.gz
 RUN echo PATH=$PATH:/usr/local/go/bin > /etc/profile
 
-RUN GOOS=windows GOARCH=amd64 /usr/local/go/bin/go install github.com/go-delve/delve/cmd/dlv@latest
+USER 1000
 
+RUN GOOS=windows GOARCH=amd64 /usr/local/go/bin/go install github.com/go-delve/delve/cmd/dlv@latest
+ADD docker/app/entrypoint_debug.sh /app
 ADD bin/server.exe /app/bin/
+
 WORKDIR /app/bin
 EXPOSE 2345
 
-ENTRYPOINT ["/usr/bin/wine64 /go/bin/windows_amd64/dlv.exe --listen=:2345 --headless=true --api-version=2 --accept-multiclient exec /app/bin/server.exe"]
-#ENTRYPOINT ["/usr/bin/wine64", "start", "/unix", "/go/bin/windows_amd64/dlv.exe", "\"--listen=:2345 --headless=true --api-version=2 --accept-multiclient exec /q $(winepath --windows app/bin/server.exe)\""]
+ENTRYPOINT ["/app/entrypoint_debug.sh"]

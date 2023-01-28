@@ -38,14 +38,7 @@ type ConnectService struct {
 	transaqHandler  *transaq.TransaqHandler
 }
 
-func (s *ConnectService) SendCommand(ctx context.Context, request *server2.SendCommandRequest) (*server2.SendCommandResponse, error) {
-	if !s.transaqHandler.IsInited() {
-		err := s.transaqHandler.Init(ctx, s.clientExists)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+func (s *ConnectService) SendCommand(_ context.Context, request *server2.SendCommandRequest) (*server2.SendCommandResponse, error) {
 	msg, err := s.transaqHandler.SendCommand(request.Message)
 	if err != nil {
 		s.localLogger.Error().Err(err)
@@ -76,7 +69,7 @@ func (s *ConnectService) FetchResponseData(_ *server2.DataRequest, srv server2.C
 			s.messagesCount++
 
 		case <-ctx.Done():
-			s.transaqHandler.Release()
+			s.transaqHandler.Disconnect()
 			s.localLogger.Warn().Msgf("Loop done %s", ctx.Err())
 			s.clientExists.Disconnected()
 			cancel()

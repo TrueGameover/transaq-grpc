@@ -34,6 +34,10 @@ build-and-run:
 	make build
 	@docker-compose up --build app
 
+build-and-debug:
+	make build
+	@docker-compose up --build debug
+
 build-proto:
 	# local
 	@protoc --proto_path=proto \
