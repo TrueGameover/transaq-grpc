@@ -30,10 +30,14 @@ func main() {
 	defer cancel()
 
 	err := transaqHandler.Init(ctx, clientExists)
-	defer transaqHandler.Release()
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		if transaqHandler.IsInited() {
+			transaqHandler.Release()
+		}
+	}()
 
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {

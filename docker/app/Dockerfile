@@ -5,22 +5,17 @@ RUN apt update && \
     apt install -y --no-install-recommends ca-certificates wine64 \
     && apt clean && update-ca-certificates
 
+RUN mkdir -p /home/server && useradd --uid 1000 --home /home/server --shell /bin/bash server \
+    && chown -R 1000:1000 /home/server \
+    && mkdir -p /app/bin/logs && chmod 0777 /app/bin/logs
 
-#RUN dpkg --add-architecture i386 && apt update && \
-#    apt install -y --no-install-recommends ca-certificates procps wget unzip build-essential gcc gcc-multilib make flex bison \
-#    && apt clean && update-ca-certificates
-
-#RUN cd /tmp && wget https://github.com/wine-mirror/wine/archive/refs/tags/wine-7.8.zip && unzip wine-7.8.zip && rm wine-7.8.zip
-#RUN cd /tmp/wine-wine-7.8 && ls -lh && ./configure --prefix=/usr --enable-win64 --without-x --without-freetype && make -j8 && make install
-
-RUN mkdir -p /home/server && useradd --uid 1000 --home /home/server --shell /bin/bash server && chown -R 1000:1000 /home/server
 ADD dll/txmlconnector64-6.19.2.21.21.dll /app/bin/
 
 EXPOSE 50051
 
 
 FROM base as prod
-ADD docker/app/entrypoint.sh /app
+ADD docker/app/entrypoint.sh /app/
 ADD bin/server.exe /app/bin/
 USER 1000
 WORKDIR /app/bin

@@ -17,12 +17,10 @@ services:
     build:
       dockerfile: docker/app/Dockerfile
       context: .
-      target: final
+      target: prod
     restart: "no"
     ports:
       - "192.168.65.1:50051:50051"
-    volumes:
-      - ./bin/logs:/go/src/github.com/TrueGameover/transaq-grpc/bin/logs
     networks:
       default:
         ipv4_address: 192.168.65.3
@@ -35,8 +33,6 @@ services:
     restart: "no"
     ports:
       - "192.168.65.1:50051:50051"
-    volumes:
-      - ./bin/logs:/go/src/github.com/TrueGameover/transaq-grpc/bin/logs
     networks:
       default:
         ipv4_address: 192.168.65.4
