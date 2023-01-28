@@ -18,6 +18,7 @@ services:
       dockerfile: docker/app/Dockerfile
       context: .
       target: prod
+    image: truegameover/transaq-grpc:latest
     restart: "no"
     ports:
       - "192.168.65.1:50051:50051"
