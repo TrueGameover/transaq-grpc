@@ -120,8 +120,17 @@ func (h *TransaqHandler) runMessagesClearing(ctx context.Context, clientExists *
 func (h *TransaqHandler) receiveData(cmsg *C.char) uintptr {
 	msg := C.GoString(cmsg)
 
-	h.messages <- msg
-	h.forMemoryFree <- cmsg
+	select {
+	case h.messages <- msg:
+	default:
+	}
+
+	select {
+	case h.forMemoryFree <- cmsg:
+	default:
+		// channel can be full, so clearing immediately
+		h.getStringFromCPointer(uintptr(unsafe.Pointer(cmsg)))
+	}
 
 	ok := true
 	return uintptr(unsafe.Pointer(&ok))
@@ -178,17 +187,6 @@ func (h *TransaqHandler) SendCommand(msg string) (string, error) {
 	defer C.free(reqData)
 
 	respPtr, _, err := h.procSendCommand.Call(uintptr(reqData))
-	defer func() {
-		if respPtr == 0 {
-			return
-		}
-
-		_, _, err = h.procFreeMemory.Call(respPtr)
-		if err != windows.Errno(0) {
-			h.localLogger.Error().Err(err)
-		}
-	}()
-
 	if err != windows.Errno(0) {
 		return "", errors.New("call error: " + err.Error())
 	}
