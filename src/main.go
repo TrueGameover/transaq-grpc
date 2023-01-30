@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const PoolSize = 100
+const PoolSize = 10000
 
 func main() {
 	appLogger := configureLogger()

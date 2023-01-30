@@ -123,6 +123,7 @@ func (h *TransaqHandler) receiveData(cmsg *C.char) uintptr {
 	select {
 	case h.messages <- msg:
 	default:
+		h.localLogger.Warn().Msg("Messages channel overflow")
 	}
 
 	select {
@@ -130,6 +131,7 @@ func (h *TransaqHandler) receiveData(cmsg *C.char) uintptr {
 	default:
 		// channel can be full, so clearing immediately
 		h.getStringFromCPointer(uintptr(unsafe.Pointer(cmsg)))
+		h.localLogger.Warn().Msg("memory for free channel overflow")
 	}
 
 	ok := true
