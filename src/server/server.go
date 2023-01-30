@@ -56,9 +56,26 @@ func (s *ConnectService) FetchResponseData(_ *server2.DataRequest, srv server2.C
 	s.localLogger.Info().Msg("Client connected")
 
 	ctx := srv.Context()
-	for {
-		timeoutCtx, cancel := context.WithTimeout(ctx, time.Minute*1)
 
+	go func() {
+		for {
+			timeoutCtx, cancel := context.WithTimeout(ctx, time.Minute*1)
+
+			select {
+			case <-timeoutCtx.Done():
+				s.localLogger.Info().Msgf("Statistic: %d per minute", s.messagesCount)
+				s.messagesCount = 0
+
+			case <-ctx.Done():
+				cancel()
+				return
+			}
+
+			cancel()
+		}
+	}()
+
+	for {
 		select {
 		case msg := <-s.messagesChannel:
 			resp := server2.DataResponse{Message: msg}
@@ -72,14 +89,7 @@ func (s *ConnectService) FetchResponseData(_ *server2.DataRequest, srv server2.C
 			s.transaqHandler.Disconnect()
 			s.localLogger.Warn().Msgf("Loop done %s", ctx.Err())
 			s.clientExists.Disconnected()
-			cancel()
 			return nil
-
-		case <-timeoutCtx.Done():
-			s.localLogger.Info().Msgf("Statistic: %d per minute", s.messagesCount)
-			s.messagesCount = 0
 		}
-
-		cancel()
 	}
 }
