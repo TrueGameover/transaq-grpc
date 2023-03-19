@@ -189,11 +189,20 @@ func (h *TransaqHandler) SendCommand(msg string) (string, error) {
 	defer C.free(reqData)
 
 	respPtr, _, err := h.procSendCommand.Call(uintptr(reqData))
+	respData := h.getStringFromCPointer(respPtr)
+
+	h.localLogger.Info().Msg(respData)
+	if err != windows.Errno(0) {
+		h.localLogger.Error().Err(err).Msg("call error with response")
+	}
+
+	if len(respData) > 0 {
+		return respData, nil
+	}
+
 	if err != windows.Errno(0) {
 		return "", errors.New("call error: " + err.Error())
 	}
-
-	respData := h.getStringFromCPointer(respPtr)
 
 	return respData, nil
 }
