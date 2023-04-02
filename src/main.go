@@ -101,7 +101,7 @@ func setupTlsConfiguration() ([]grpc.ServerOption, error) {
 		return nil, errors.New("cannot append rootCA to cert pool")
 	}
 
-	serverCert, err := tls.LoadX509KeyPair("certs/server.crt", "certs/server.key")
+	serverCert, err := tls.LoadX509KeyPair("certs/transaqGrpcServiceServer.crt", "certs/transaqGrpcServiceServer.key")
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +110,7 @@ func setupTlsConfiguration() ([]grpc.ServerOption, error) {
 		Certificates: []tls.Certificate{serverCert},
 		ClientCAs:    certPool,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
+		MinVersion:   tls.VersionTLS13,
 	}
 
 	opts = append(opts, grpc.Creds(credentials.NewTLS(&tlsConfig)))
