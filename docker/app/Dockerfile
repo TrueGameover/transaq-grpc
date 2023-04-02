@@ -7,7 +7,11 @@ RUN apt update && \
 
 RUN mkdir -p /home/server && useradd --uid 1000 --home /home/server --shell /bin/bash server \
     && chown -R 1000:1000 /home/server \
-    && mkdir -p /app/bin/logs && chmod 0777 /app/bin/logs
+    && mkdir -p /app/bin/logs && chmod 0777 /app/bin/logs \
+    && mkdir -p /app/bin/certs && chmod 0777 /app/bin/certs
+
+ADD certs/ /app/bin/certs/
+RUN chmod -R 0777 /app/bin/certs
 
 ADD dll/txmlconnector64-6.19.2.21.21.dll /app/bin/
 

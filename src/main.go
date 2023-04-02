@@ -4,6 +4,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"github.com/TrueGameover/transaq-grpc/src/client"
 	server2 "github.com/TrueGameover/transaq-grpc/src/grpc/server"
 	"github.com/TrueGameover/transaq-grpc/src/server"
@@ -12,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"net"
 	"os"
 	"os/signal"
@@ -44,7 +48,13 @@ func main() {
 		appLogger.Panic().Err(err)
 	}
 
-	srv := grpc.NewServer()
+	tlsOptions, err := setupTlsConfiguration()
+	if err != nil {
+		appLogger.Warn().Err(err).Msg("Tls initialization failed. Skipping...")
+		tlsOptions = []grpc.ServerOption{}
+	}
+
+	srv := grpc.NewServer(tlsOptions...)
 	SetupCloseHandler(srv, appLogger, cancel)
 
 	server2.RegisterConnectServiceServer(srv, server.NewConnectService(transaqHandler, messagesChannel, clientExists, appLogger))
@@ -76,4 +86,33 @@ func configureLogger() *zerolog.Logger {
 	)
 
 	return &zeroLogger
+}
+
+func setupTlsConfiguration() ([]grpc.ServerOption, error) {
+	var opts []grpc.ServerOption
+
+	rootCa, err := os.ReadFile("certs/rootCA.crt")
+	if err != nil {
+		return nil, err
+	}
+
+	certPool := x509.NewCertPool()
+	if !certPool.AppendCertsFromPEM(rootCa) {
+		return nil, errors.New("cannot append rootCA to cert pool")
+	}
+
+	serverCert, err := tls.LoadX509KeyPair("certs/server.crt", "certs/server.key")
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientCAs:    certPool,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+	}
+
+	opts = append(opts, grpc.Creds(credentials.NewTLS(&tlsConfig)))
+
+	return opts, nil
 }
