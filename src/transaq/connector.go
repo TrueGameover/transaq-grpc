@@ -7,9 +7,9 @@ import (
 	"context"
 	"errors"
 	"github.com/TrueGameover/transaq-grpc/src/client"
+	"github.com/TrueGameover/transaq-grpc/src/queue"
 	"github.com/rs/zerolog"
 	"golang.org/x/sys/windows"
-	"time"
 	"unsafe"
 )
 
@@ -23,18 +23,18 @@ type TransaqHandler struct {
 	procInitialize   *windows.Proc
 	procUnInitialize *windows.Proc
 	forMemoryFree    chan *C.char
-	messages         chan string
+	messagesQueue    *queue.FixedQueue[string]
 	localLogger      *zerolog.Logger
 }
 
-func NewTransaqHandler(logger *zerolog.Logger, messagesChannel chan string) *TransaqHandler {
-	forMemoryFree := make(chan *C.char, cap(messagesChannel))
+func NewTransaqHandler(logger *zerolog.Logger, messagesQueue *queue.FixedQueue[string]) *TransaqHandler {
+	forMemoryFree := make(chan *C.char, messagesQueue.GetMaxSize())
 	localLogger := logger.With().Str("Service", "TransaqHandler").Logger()
 
 	return &TransaqHandler{
 		forMemoryFree: forMemoryFree,
 		localLogger:   &localLogger,
-		messages:      messagesChannel,
+		messagesQueue: messagesQueue,
 	}
 }
 
@@ -42,7 +42,7 @@ func (h *TransaqHandler) IsInited() bool {
 	return h.txmlconnector != nil
 }
 
-func (h *TransaqHandler) Init(appContext context.Context, clientExists *client.ClientExists) error {
+func (h *TransaqHandler) Init(appContext context.Context, _ *client.ClientExists) error {
 	dll, err := windows.LoadDLL(dllPath)
 	if err != windows.Errno(0) && err != nil {
 		h.localLogger.Error().Msgf("load dll failed %d", err)
@@ -76,7 +76,6 @@ func (h *TransaqHandler) Init(appContext context.Context, clientExists *client.C
 	}
 
 	go h.runFreeMemory(appContext)
-	go h.runMessagesClearing(appContext, clientExists)
 
 	return nil
 }
@@ -99,32 +98,10 @@ func (h *TransaqHandler) runFreeMemory(ctx context.Context) {
 	}
 }
 
-func (h *TransaqHandler) runMessagesClearing(ctx context.Context, clientExists *client.ClientExists) {
-	for {
-		if clientExists.IsConnected() {
-			time.Sleep(time.Second * 1)
-			continue
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case _, ok := <-h.messages:
-			if !ok {
-				h.localLogger.Panic().Msg("messages channel closed")
-			}
-		}
-	}
-}
-
 func (h *TransaqHandler) receiveData(cmsg *C.char) uintptr {
 	msg := C.GoString(cmsg)
 
-	select {
-	case h.messages <- msg:
-	default:
-		h.localLogger.Warn().Msg("Messages channel overflow")
-	}
+	h.messagesQueue.Push(msg)
 
 	select {
 	case h.forMemoryFree <- cmsg:

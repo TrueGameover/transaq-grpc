@@ -9,6 +9,7 @@ import (
 	"errors"
 	"github.com/TrueGameover/transaq-grpc/src/client"
 	server2 "github.com/TrueGameover/transaq-grpc/src/grpc/server"
+	"github.com/TrueGameover/transaq-grpc/src/queue"
 	"github.com/TrueGameover/transaq-grpc/src/server"
 	"github.com/TrueGameover/transaq-grpc/src/transaq"
 	"github.com/rs/zerolog"
@@ -26,12 +27,12 @@ const PoolSize = 10000
 
 func main() {
 	appLogger := configureLogger()
-	messagesChannel := make(chan string, PoolSize)
-	transaqHandler := transaq.NewTransaqHandler(appLogger, messagesChannel)
-	clientExists := client.NewClientExists()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	fixedQueue := queue.NewFixedQueue[string](ctx, PoolSize)
+	transaqHandler := transaq.NewTransaqHandler(appLogger, fixedQueue)
+	clientExists := client.NewClientExists()
 
 	err := transaqHandler.Init(ctx, clientExists)
 	if err != nil {
@@ -57,7 +58,7 @@ func main() {
 	srv := grpc.NewServer(tlsOptions...)
 	SetupCloseHandler(srv, appLogger, cancel)
 
-	server2.RegisterConnectServiceServer(srv, server.NewConnectService(transaqHandler, messagesChannel, clientExists, appLogger))
+	server2.RegisterConnectServiceServer(srv, server.NewConnectService(transaqHandler, fixedQueue, clientExists, appLogger))
 
 	appLogger.Info().Msg("Press CRTL+C to stop the ConnectService...")
 

@@ -3,8 +3,8 @@ package client
 import "sync"
 
 type ClientExists struct {
-	mutex     *sync.Mutex
-	connected bool
+	mutex          *sync.Mutex
+	connectedCount uint32
 }
 
 func NewClientExists() *ClientExists {
@@ -16,15 +16,19 @@ func NewClientExists() *ClientExists {
 func (h *ClientExists) Connected() {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
-	h.connected = true
+	h.connectedCount++
 }
 
 func (h *ClientExists) Disconnected() {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
-	h.connected = false
+	h.connectedCount--
+
+	if h.connectedCount < 0 {
+		h.connectedCount = 0
+	}
 }
 
 func (h *ClientExists) IsConnected() bool {
-	return h.connected
+	return h.connectedCount > 0
 }

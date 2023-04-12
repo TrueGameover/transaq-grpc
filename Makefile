@@ -49,3 +49,5 @@ push:
 	@make build
 	@make start
 	@docker-compose push app
+	@docker-compose down
+
