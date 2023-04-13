@@ -42,6 +42,7 @@ func NewFixedQueue[T interface{}](ctx context.Context, size int) *FixedQueue[T] 
 
 func (q *FixedQueue[T]) Push(element T) {
 	q.mutex.Lock()
+	defer q.mutex.Unlock()
 
 	actualSize := q.elementsList.Len()
 
@@ -53,16 +54,13 @@ func (q *FixedQueue[T]) Push(element T) {
 	}
 
 	q.elementsList.PushBack(element)
-
-	q.mutex.Unlock()
 }
 
 func (q *FixedQueue[T]) Pop() *T {
 	q.mutex.Lock()
+	defer q.mutex.Unlock()
 
 	element := q.catchHead()
-
-	q.mutex.Unlock()
 
 	return element
 }
@@ -116,6 +114,7 @@ func (q *FixedQueue[T]) dispatchToChannels(ctx context.Context) {
 		}
 
 		element := q.channelsBag.Front()
+		hasReceivers := false
 		for element != nil {
 			bag, ok := element.Value.(channelBag[T])
 
@@ -134,10 +133,16 @@ func (q *FixedQueue[T]) dispatchToChannels(ctx context.Context) {
 			// если не смогли записать в канал, пропускаем его
 			select {
 			case bag.ch <- *head:
+				hasReceivers = true
 			default:
 			}
 
 			element = element.Next()
+		}
+
+		if !hasReceivers {
+			// message not delivered, push it again
+			q.Push(*head)
 		}
 	}
 }

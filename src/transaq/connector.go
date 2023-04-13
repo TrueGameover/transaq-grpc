@@ -116,7 +116,7 @@ func (h *TransaqHandler) receiveData(cmsg *C.char) uintptr {
 }
 
 func (h *TransaqHandler) Disconnect() {
-	_, err := h.SendCommand("<command id=\"disconnect\"/>")
+	_, _, err := h.SendCommand("<command id=\"disconnect\"/>")
 	if err != nil {
 		h.localLogger.Error().Err(err)
 	}
@@ -160,7 +160,7 @@ func (h *TransaqHandler) getStringFromCPointer(pointer uintptr) string {
 	return C.GoString(cmsg)
 }
 
-func (h *TransaqHandler) SendCommand(msg string) (string, error) {
+func (h *TransaqHandler) SendCommand(msg string) (string, uint64, error) {
 	cMsg := C.CString(msg)
 	reqData := unsafe.Pointer(cMsg)
 	defer C.free(reqData)
@@ -170,16 +170,19 @@ func (h *TransaqHandler) SendCommand(msg string) (string, error) {
 
 	h.localLogger.Info().Msg(respData)
 	if err != windows.Errno(0) {
-		h.localLogger.Error().Err(err).Msg("call error with response")
+		windowsError, _ := err.(windows.Errno)
+		h.localLogger.Error().Err(err).Msgf("call error with response ( %d )", uint64(windowsError))
 	}
 
 	if len(respData) > 0 {
-		return respData, nil
+		windowsError, _ := err.(windows.Errno)
+		return respData, uint64(windowsError), nil
 	}
 
 	if err != windows.Errno(0) {
-		return "", errors.New("call error: " + err.Error())
+		windowsError, _ := err.(windows.Errno)
+		return "", uint64(windowsError), errors.New("call error: " + err.Error())
 	}
 
-	return respData, nil
+	return respData, 0, nil
 }

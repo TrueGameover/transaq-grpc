@@ -40,7 +40,7 @@ type ConnectService struct {
 }
 
 func (s *ConnectService) SendCommand(_ context.Context, request *server2.SendCommandRequest) (*server2.SendCommandResponse, error) {
-	msg, err := s.transaqHandler.SendCommand(request.Message)
+	msg, code, err := s.transaqHandler.SendCommand(request.Message)
 	if err != nil {
 		s.localLogger.Error().Err(err)
 		return nil, err
@@ -48,6 +48,7 @@ func (s *ConnectService) SendCommand(_ context.Context, request *server2.SendCom
 
 	return &server2.SendCommandResponse{
 		Message: msg,
+		Code:    code,
 	}, nil
 }
 
@@ -80,7 +81,12 @@ func (s *ConnectService) FetchResponseData(_ *server2.DataRequest, srv server2.C
 
 	for {
 		select {
-		case msg := <-messagesChannel:
+		case msg, ok := <-messagesChannel:
+			if !ok {
+				s.localLogger.Error().Msg("messagesChannel was closed")
+				return nil
+			}
+
 			resp := server2.DataResponse{Message: msg}
 			err := srv.Send(&resp)
 			if err != nil {
