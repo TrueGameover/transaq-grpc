@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaq-grpc-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: transaq-grpc-service
+
+  template:
+    metadata:
+      labels:
+        name: transaq-grpc-service
+    spec:
+      containers:
+        - name: transaq-grpc-service
+          image: ${DOCKER_IMAGE_REGISTRY}/${DOCKER_IMAGE_REPOSITORY}/transaq-grpc:${DOCKER_IMAGE_TAG}
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: transaq-grpc-secrets
+
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaq-grpc-service
+spec:
+  type: NodePort
+  selector:
+    name: transaq-grpc-service
+  ports:
+    - name: app
+      port: 50051
+      targetPort: 50051

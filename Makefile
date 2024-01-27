@@ -51,3 +51,8 @@ push:
 	@docker-compose push app
 	@docker-compose down
 
+minikube-build:
+	./.deploy/docker/build.sh minikube
+
+minikube-update-k8s:
+	./.deploy/k8s/secrets.sh && ./.deploy/k8s/apply.sh
