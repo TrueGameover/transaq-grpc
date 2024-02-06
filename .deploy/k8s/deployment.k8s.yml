@@ -29,7 +29,7 @@ kind: Service
 metadata:
   name: transaq-grpc-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     name: transaq-grpc-service
   ports:
