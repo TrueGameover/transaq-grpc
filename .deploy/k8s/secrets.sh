@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # shellcheck disable=SC2046
-export $(grep -v '^#' .env | xargs -d '\n')
+# shellcheck disable=SC2016
+export $(envsubst '$HOME' <.env | grep -v '^#' | xargs -d '\n')
 
-kubectl -n "$NAMESPACE" delete --ignore-not-found=true secret transaq-grpc-secrets &&
-  kubectl -n "$NAMESPACE" create secret generic transaq-grpc-secrets --from-env-file=.env
+kubectl --kubeconfig="$K8S_CONFIG_PATH" -n "$NAMESPACE" delete --ignore-not-found=true secret transaq-grpc-secrets || exit 1
+kubectl --kubeconfig="$K8S_CONFIG_PATH" -n "$NAMESPACE" create secret generic transaq-grpc-secrets --from-env-file=.env || exit 1

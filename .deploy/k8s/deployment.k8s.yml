@@ -13,6 +13,9 @@ spec:
       labels:
         name: transaq-grpc-service
     spec:
+      imagePullSecrets:
+        - name: local-registry
+
       containers:
         - name: transaq-grpc-service
           image: ${DOCKER_IMAGE_REGISTRY}/${DOCKER_IMAGE_REPOSITORY}/transaq-grpc:${DOCKER_IMAGE_TAG}
