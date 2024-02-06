@@ -20,4 +20,4 @@ minikube-update-k8s:
 	./.deploy/k8s/secrets.sh && ./.deploy/k8s/apply.sh
 
 build:
-	./.deploy/docker/build.sh minikube
+	./.deploy/docker/build.sh
