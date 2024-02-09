@@ -20,6 +20,10 @@ spec:
         - name: transaq-grpc-service
           image: ${DOCKER_IMAGE_REGISTRY}/${DOCKER_IMAGE_REPOSITORY}/transaq-grpc:${DOCKER_IMAGE_TAG}
           imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "400M"
           envFrom:
             - secretRef:
                 name: transaq-grpc-secrets
