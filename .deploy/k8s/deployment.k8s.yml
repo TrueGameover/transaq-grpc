@@ -24,6 +24,7 @@ spec:
             requests:
               cpu: "300m"
               memory: "400M"
+              ephemeral-storage: "1.5G"
           envFrom:
             - secretRef:
                 name: transaq-grpc-secrets
