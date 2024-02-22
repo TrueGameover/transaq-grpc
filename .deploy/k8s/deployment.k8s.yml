@@ -23,7 +23,7 @@ spec:
           resources:
             requests:
               cpu: "300m"
-              memory: "400M"
+              memory: "512M"
               ephemeral-storage: "1.5G"
           envFrom:
             - secretRef:
