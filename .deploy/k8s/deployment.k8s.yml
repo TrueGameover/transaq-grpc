@@ -23,11 +23,11 @@ spec:
           resources:
             requests:
               cpu: "300m"
-              memory: "600Mi"
+              memory: "700Mi"
               ephemeral-storage: "1.5G"
             limits:
               cpu: "300m"
-              memory: "600Mi"
+              memory: "700Mi"
           envFrom:
             - secretRef:
                 name: transaq-grpc-secrets
