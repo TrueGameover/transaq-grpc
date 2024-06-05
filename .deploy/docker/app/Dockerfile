@@ -20,7 +20,7 @@ RUN mkdir -p /home/server && useradd --uid 1000 --home /home/server --shell /bin
 ADD .deploy/docker/certs/ /app/bin/certs/
 RUN chmod -R 0777 /app/bin/certs
 
-ADD dll/txmlconnector64-6.19.2.21.21.dll /app/bin/
+ADD dll/txmlconnector64-6.32.2.21.23.dll /app/bin/
 
 EXPOSE 50051
 
