@@ -17,7 +17,7 @@ minikube-build:
 	./.deploy/docker/build.sh minikube
 
 minikube-update-k8s:
-	./.deploy/k8s/secrets.sh && ./.deploy/k8s/apply.sh
+	./.deploy/k8s/secrets.sh minikube && ./.deploy/k8s/apply.sh minikube
 
 build:
 	./.deploy/docker/build.sh

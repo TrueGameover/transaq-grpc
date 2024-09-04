@@ -1,8 +1,14 @@
 #!/bin/bash
 
+envFile=".env.prod"
+
+if [ "$1" = "minikube" ]; then
+  envFile=".env"
+fi
+
 # shellcheck disable=SC2046
 # shellcheck disable=SC2016
-export $(envsubst '$HOME' <.env | grep -v '^#' | xargs -d '\n')
+export $(envsubst '$HOME' <$envFile | grep -v '^#' | xargs -d '\n')
 
 # shellcheck disable=SC2016
 replacedEnvs='${IMAGE_PULL_SEC} ${DOCKER_IMAGE_REGISTRY} ${DOCKER_IMAGE_REPOSITORY} ${DOCKER_IMAGE_TAG}'
