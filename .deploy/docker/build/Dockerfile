@@ -1,4 +1,4 @@
-FROM golang:1.21-bookworm as builder
+FROM golang:1.23-bookworm as builder
 
 RUN echo 'deb http://mirror.yandex.ru/debian bookworm main non-free contrib' > /etc/apt/sources.list
 RUN apt update && apt install -y gcc-mingw-w64 gcc libc-dev musl-dev
